@@ -47,6 +47,7 @@ def method2(src_file, dst_file):
             _col.append(row.get(column))
 
     # 将列数据转成 pyarrow.array 格式
+    # array_data中数据顺序必须和schema一致
     array_data = []
     for column in schema:
         array_data.append(pyarrow.array(column_data[column]))
