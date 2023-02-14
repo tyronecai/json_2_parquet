@@ -17,11 +17,13 @@
 ################################################################################
 
 import pyarrow
-import pyarrow.json as pjson
 import pyarrow.parquet as pq
+import pyarrow.json as pj
 import json
 
-def fun3(src_file, dst_file):
+
+def method2(src_file, dst_file):
+    # 先获取到所有按行存储的json数据，并统计有多少列
     data = []
     column_names = set()
     for line in open(src_file):
@@ -32,7 +34,8 @@ def fun3(src_file, dst_file):
 
     schema = sorted(list(column_names))
 
-    # 第二次循环，给每列填充数据
+    # 第二次循环，给每列填充数据，将行数据转成列数据，要求同一列的所有数据格式必须一致
+    # 有些列可能在某些行不存在，要填null
     column_data = {}
     for row in data:
         for column in schema:
@@ -43,18 +46,21 @@ def fun3(src_file, dst_file):
                 _col = column_data[column]
             _col.append(row.get(column))
 
+    # 将列数据转成 pyarrow.array 格式
     array_data = []
-    for column, _col in column_data.items():
-        pydata = pyarrow.array(_col)
-        array_data.append(pydata)
+    for column in schema:
+        array_data.append(pyarrow.array(column_data[column]))
 
+    # 将列数据转成Table
     table = pyarrow.Table.from_arrays(array_data, schema)
     print('table', table.num_rows, table.num_columns, table.schema)
+    # 将table存储为parquet格式
     pq.write_table(table, dst_file)
 
 
-def fun1(src_file, dst_file):
-    table = pjson.read_json(src_file)
+def method1(src_file, dst_file):
+    # 直接调用c++来转换
+    table = pj.read_json(src_file)
     print('table', table.num_rows, table.num_columns, table.schema)
     pq.write_table(table, dst_file)
 
@@ -62,4 +68,4 @@ def fun1(src_file, dst_file):
 if __name__ == '__main__':
     src_file = 'input.json'
     dst_file = 'result.parquet'
-    fun3(src_file, dst_file)
+    method1(src_file, dst_file)
